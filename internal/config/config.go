@@ -10,6 +10,7 @@ import (
 	"github.com/knadh/koanf/providers/file"
 	"github.com/knadh/koanf/providers/structs"
 	"github.com/r523/dafdardaar/internal/board"
+	"github.com/r523/dafdardaar/internal/logger"
 )
 
 const (
@@ -21,6 +22,7 @@ type (
 	// Config holds all configurations.
 	Config struct {
 		BoardConnection board.Config
+		Logger          logger.Config
 	}
 )
 
