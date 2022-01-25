@@ -12,7 +12,7 @@ func Default() Config {
 	return Config{
 		BoardConnection: board.Config{
 			ServerURL:         "tcp://127.0.0.1:1883",
-			KeepAlive:         0,
+			KeepAlive:         1,
 			ConnectRetryDelay: time.Millisecond * 100,
 		},
 		Logger: logger.Config{
