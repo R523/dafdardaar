@@ -57,13 +57,13 @@ func New(ctx context.Context, cfg Config, logger *zap.Logger) (Board, error) {
 			Router: paho.NewSingleHandlerRouter(func(m *paho.Publish) {
 			}),
 			OnClientError: func(err error) {
-				fmt.Printf("server requested disconnect: %s\n", err)
+				logger.Info("server requested disconnect", zap.Error(err))
 			},
 			OnServerDisconnect: func(d *paho.Disconnect) {
 				if d.Properties != nil {
-					fmt.Printf("server requested disconnect: %s\n", d.Properties.ReasonString)
+					logger.Info("server requested disconnect", zap.String("reason", d.Properties.ReasonString))
 				} else {
-					fmt.Printf("server requested disconnect; reason code: %d\n", d.ReasonCode)
+					logger.Info("server requested disconnect", zap.Int("reason code", int(d.ReasonCode)))
 				}
 			},
 		},
