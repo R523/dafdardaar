@@ -15,6 +15,7 @@ import (
 // in the rooms of office.
 type Board struct {
 	Connection *autopaho.ConnectionManager
+	Logger     *zap.Logger
 }
 
 // Config contains the configurations are required to
@@ -25,12 +26,19 @@ type Config struct {
 	ConnectRetryDelay time.Duration
 }
 
-func New(ctx context.Context, cfg Config, logger *zap.Logger) (Board, error) {
+func New(ctx context.Context, cfg Config, logger *zap.Logger) (*Board, error) {
+	b := new(Board)
+
 	serverURL, err := url.Parse(cfg.ServerURL)
 	if err != nil {
-		return Board{}, fmt.Errorf("invalid server url %w", err)
+		return nil, fmt.Errorf("invalid server url %w", err)
 	}
 
+	router := paho.NewStandardRouter()
+
+	router.RegisterHandler("/+/detect", b.onDetect)
+
+	// nolint: exhaustivestruct
 	cliCfg := autopaho.ClientConfig{
 		BrokerUrls:        []*url.URL{serverURL},
 		KeepAlive:         cfg.KeepAlive,
@@ -39,8 +47,15 @@ func New(ctx context.Context, cfg Config, logger *zap.Logger) (Board, error) {
 			logger.Info("mqtt connection up")
 
 			if _, err := cm.Subscribe(context.Background(), &paho.Subscribe{
-				Subscriptions: map[string]paho.SubscribeOptions{},
-				Properties:    nil,
+				Subscriptions: map[string]paho.SubscribeOptions{
+					"/+/detect": {
+						QoS:               1,
+						RetainHandling:    0,
+						NoLocal:           false,
+						RetainAsPublished: false,
+					},
+				},
+				Properties: nil,
 			}); err != nil {
 				logger.Error("failed to subscribe. this is likely to mean no messages will be received.", zap.Error(err))
 
@@ -54,11 +69,10 @@ func New(ctx context.Context, cfg Config, logger *zap.Logger) (Board, error) {
 		},
 		ClientConfig: paho.ClientConfig{
 			ClientID: "daftardaar",
-			Router: paho.NewSingleHandlerRouter(func(m *paho.Publish) {
-			}),
 			OnClientError: func(err error) {
 				logger.Info("server requested disconnect", zap.Error(err))
 			},
+			Router: router,
 			OnServerDisconnect: func(d *paho.Disconnect) {
 				if d.Properties != nil {
 					logger.Info("server requested disconnect", zap.String("reason", d.Properties.ReasonString))
@@ -71,10 +85,29 @@ func New(ctx context.Context, cfg Config, logger *zap.Logger) (Board, error) {
 
 	connectionManager, err := autopaho.NewConnection(ctx, cliCfg)
 	if err != nil {
-		return Board{}, fmt.Errorf("broker connection failed %w", err)
+		return nil, fmt.Errorf("broker connection failed %w", err)
 	}
 
-	return Board{
-		Connection: connectionManager,
-	}, nil
+	b.Connection = connectionManager
+	b.Logger = logger
+
+	return b, nil
+}
+
+// onDetect subscribes on detection event from ultrasonice sensor.
+// it checks on/off period from database for turning on the door lamp.
+func (b *Board) onDetect(m *paho.Publish) {
+	b.Logger.Info("detect", zap.String("topic", m.Topic))
+
+	var roomID int
+
+	fmt.Sscanf(m.Topic, "/%d/detect", &roomID)
+
+	b.Logger.Info("someone is behind the door", zap.Int("room", roomID))
+
+	b.Connection.Publish(context.Background(), &paho.Publish{
+		QoS:     1,
+		Topic:   fmt.Sprintf("/%d/lamp", roomID),
+		Payload: []byte("on"),
+	})
 }
