@@ -8,3 +8,8 @@ services:
     ports:
       - 1883:1883
       - 18083:18083
+
+  database:
+    image: mongo:latest
+    ports:
+      - 27017:27017
