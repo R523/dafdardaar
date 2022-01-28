@@ -3,7 +3,7 @@ package user
 import (
 	"context"
 
-	"github.com/1995parham/fandogh/internal/model"
+	"github.com/r523/dafdardaar/internal/model"
 )
 
 // User stores and retrieves users.
