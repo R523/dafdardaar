@@ -1,7 +1,7 @@
 package main
 
-import "fmt"
+import "github.com/r523/dafdardaar/internal/cmd/central"
 
 func main() {
-	fmt.Println("central")
+	central.Execute()
 }
